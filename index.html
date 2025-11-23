@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>VolleyApp</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ff9900"/>
+<style>
+:root{--bg:#fff7ef;--card:#fff;--accent:#ff9900;--muted:#6b7280}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;background:linear-gradient(180deg,#fffaf0,#fff7ef);color:#111;padding:16px}
+.app{max-width:980px;margin:0 auto}
+.header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.h-title{font-size:20px;font-weight:700;color:var(--accent);display:flex;align-items:center;gap:8px}
+.card{background:var(--card);border-radius:14px;padding:12px;box-shadow:0 6px 18px rgba(15,23,42,0.06);margin-bottom:12px}
+.controls{display:flex;gap:8px;flex-wrap:wrap}
+.input,select,button{padding:10px;border-radius:10px;border:1px solid #e6e6e6;font-size:14px}
+.button-primary{background:var(--accent);color:white;border:none}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.player-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px;border-radius:8px;background:#fafafa}
+.small{font-size:13px;color:var(--muted)}
+
+/* court */
+.court{position:relative;height:420px;border-radius:14px;overflow:hidden;background:linear-gradient(180deg,#ffebcc,#ffe6b3);display:flex;align-items:center;justify-content:center}
+.net{position:absolute;top:20%;left:0;right:0;height:4px;background:#333;opacity:0.9;z-index:5}
+.positions{position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:12px;padding:36px;pointer-events:none}
+.pos{background:#fff;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-direction:column;pointer-events:auto;transition:transform 400ms cubic-bezier(.2,.9,.3,1);box-shadow:0 6px 12px rgba(0,0,0,0.06)}
+.pos .num{font-weight:700}
+.pos.libero{background:#fff7e6;border:2px dashed #ffd699}
+
+/* animation for rotation */
+.rotate-anim { transform-origin: center center; animation: rotateStep 450ms ease-in-out; }
+@keyframes rotateStep { from { transform: translateY(-6px) } to { transform: translateY(0) } }
+
+.footer{display:flex;gap:8px;align-items:center;justify-content:space-between}
+
+/* modal */
+.modal-back{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:50}
+.modal{width:95%;max-width:520px;background:white;border-radius:12px;padding:16px}
+
+/* responsive */
+@media (max-width:600px){ .grid{grid-template-columns:1fr} .positions{padding:18px} }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="h-title">🏐 VolleyApp</div>
+    <div class="small">Offline-ready • Install op je telefoon</div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <input id="name" class="input" placeholder="Naam speler" />
+      <input id="number" class="input" placeholder="Nummer" style="width:90px" />
+      <select id="role" class="input" style="width:160px">
+        <option value="passer-loper">Passer-loper</option>
+        <option value="midden">Midden</option>
+        <option value="spelverdeler">Spelverdeler</option>
+        <option value="diagonaal">Diagonaal</option>
+        <option value="libero">Libero</option>
+      </select>
+      <button id="addBtn" class="button-primary input">Toevoegen</button>
+    </div>
+    <div class="small" style="margin-top:8px">Tip: voeg minimaal 6 spelers + 1 libero toe voor volledige functionaliteit.</div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div class="small">Spelers</div>
+      <div class="small">Klik om te verwijderen</div>
+    </div>
+    <div id="playersList" style="display:flex;flex-direction:column;gap:6px"></div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      <button id="autoLineBtn" class="input">Genereer Opstelling (eerste 6)</button>
+      <button id="saveLineBtn" class="input">Opslaan in Set</button>
+      <button id="nextSetBtn" class="input">Volgende Set →</button>
+      <button id="rotateBtn" class="input">Draai Handmatig</button>
+      <button id="clearBtn" class="input">Reset</button>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+      <div class="small">Huidige set: <strong id="currentSet">1</strong></div>
+      <div class="small">Score: <strong id="score">0 - 0</strong></div>
+    </div>
+
+    <div class="court card" id="court">
+      <div class="net"></div>
+      <div class="positions" id="positions"></div>
+    </div>
+
+    <div style="margin-top:8px" class="small">Regels: Libero vervangt midden alleen op pos5/6 en mag niet serveren.</div>
+  </div>
+
+  <div class="card footer">
+    <div>⚙️ Instellingen</div>
+    <div><button id="installBtn" class="input">Installeren (PWA)</button></div>
+  </div>
+</div>
+
+<!-- Modal placeholders -->
+<div id="modalRoot"></div>
+
+<script>
+/* Simple PWA-friendly volleyball tracker (vanilla JS)
+   - players stored in localStorage
+   - lineup for current set stored
+   - next-set modal: copy lineup or choose swaps (if >6 players & libero)
+   - rotation logic: if team gains point after opponent had it => rotate
+   - libero substitution on pos5/6; libero not allowed on pos1
+*/
+
+const STORAGE_KEY = 'volleyapp_v1';
+let state = {
+  players: [], // {id, name, number, role}
+  sets: [{set:1, us:0, them:0, lineup: [null,null,null,null,null,null], timeouts: []}],
+  currentSet: 1,
+  lineup: [null,null,null,null,null,null],
+  lastPointWinner: null,
+  substituted: {} // id -> true if substituted by libero
+};
+
+// DOM refs
+const playersList = document.getElementById('playersList');
+const positionsEl = document.getElementById('positions');
+const currentSetEl = document.getElementById('currentSet');
+const scoreEl = document.getElementById('score');
+const modalRoot = document.getElementById('modalRoot');
+
+// positions mapping (index order corresponds to visual positions grid)
+const posLabels = ['Pos 4','Pos 3','Pos 2','Pos 5','Pos 6','Pos 1'];
+
+// load from localStorage
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) state = JSON.parse(raw);
+  } catch(e){ console.warn('load error',e) }
+  // ensure arrays exist
+  state.players = state.players || [];
+  state.sets = state.sets || [{set:1, us:0, them:0, lineup:[null,null,null,null,null,null], timeouts:[]}];
+  state.currentSet = state.currentSet || 1;
+  state.lineup = state.lineup || [null,null,null,null,null,null];
+  render();
+}
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+// helpers
+function uid(){ return Date.now() + Math.floor(Math.random()*999); }
+function getPlayer(id){ return state.players.find(p=>p.id===id) || null; }
+function firstLibero(){ return state.players.find(p=>p.role==='libero') || null; }
+
+// add player
+document.getElementById('addBtn').addEventListener('click', ()=>{
+  const name = document.getElementById('name').value.trim();
+  const number = document.getElementById('number').value.trim();
+  const role = document.getElementById('role').value;
+  if(!name) return alert('Voer een naam in');
+  if(role==='libero' && state.players.some(p=>p.role==='libero')) return alert('Er is al een libero');
+  const p = {id: uid(), name, number: number || '', role};
+  state.players.push(p);
+  document.getElementById('name').value=''; document.getElementById('number').value='';
+  save(); render();
+});
+
+// render players list
+function renderPlayers(){
+  playersList.innerHTML='';
+  state.players.forEach(p => {
+    const el = document.createElement('div'); el.className='player-row';
+    el.innerHTML = `<div><strong>#${p.number}</strong> ${p.name} <div class="small">(${p.role})</div></div>`;
+    el.addEventListener('click', ()=>{
+      if(confirm('Verwijder speler '+p.name+'?')){
+        state.players = state.players.filter(x=>x.id!==p.id);
+        // remove from lineup
+        state.lineup = state.lineup.map(x => x===p.id?null:x);
+        state.sets = state.sets.map(s => ({...s, lineup: (s.lineup||[null, null, null, null, null, null]).map(x=>x===p.id?null:x)}));
+        save(); render();
+      }
+    });
+    playersList.appendChild(el);
+  });
+}
+
+// render court & lineup
+function renderCourt(animate=false){
+  positionsEl.innerHTML='';
+  const libero = firstLibero();
+  const pos5Idx = 3, pos6Idx = 4, pos1Idx = 5;
+  for(let i=0;i<6;i++){
+    const div = document.createElement('div');
+    div.className = 'pos card';
+    if(animate) div.classList.add('rotate-anim');
+    const pid = state.lineup[i];
+    let label = posLabels[i];
+    let content = '';
+    if(pid){
+      const p = getPlayer(pid);
+      content = `#${p.number || ''} ${p.name}`;
+      if(p.role==='libero') div.classList.add('libero');
+    } else {
+      content = 'Leeg';
+    }
+    // if libero should replace middens on pos5/6
+    if(libero && (i===pos5Idx || i===pos6Idx)){
+      // if current assigned is a midden, substitute
+      if(pid){
+        const p = getPlayer(pid);
+        if(p && p.role==='midden'){
+          content = `#${libero.number || ''} ${libero.name} (L)`;
+          div.classList.add('libero');
+        }
+      } else if(libero){
+        // if empty slot, show libero if desired (we show libero if present)
+        // only if that pos would be occupied by a substituted midden — but for simplicity, show libero visually
+        // nothing to change in state.lineup here
+      }
+    }
+    div.innerHTML = `<div class="num">${label}</div><div style="font-size:14px;margin-top:6px">${content}</div>`;
+    positionsEl.appendChild(div);
+  }
+  // update score & set
+  currentSetEl.textContent = state.currentSet;
+  const s = state.sets.find(x=>x.set===state.currentSet) || {us:0,them:0};
+  scoreEl.textContent = `${s.us} - ${s.them}`;
+}
+
+// apply libero substitution rules to a tentative lineup array and return new lineup
+function applyLiberoRules(tentative){
+  const newL = tentative.slice();
+  const libero = firstLibero();
+  if(!libero) return newL;
+  const pos5Idx = 3, pos6Idx = 4, pos1Idx = 5;
+  // replace middens on pos5/6 with libero
+  [pos5Idx,pos6Idx].forEach(idx => {
+    const pid = newL[idx];
+    if(pid){
+      const p = getPlayer(pid);
+      if(p && p.role==='midden'){
+        // substitute
+        newL[idx] = libero.id;
+        state.substituted[p.id] = true;
+      }
+    }
+  });
+  // ensure libero not on pos1: if so, try swap with pos5/6 else null pos1
+  if(newL[pos1Idx] && getPlayer(newL[pos1Idx]) && getPlayer(newL[pos1Idx]).role==='libero'){
+    const swapFrom = [pos5Idx,pos6Idx].find(i => newL[i]===newL[pos1Idx]);
+    if(typeof swapFrom!=='undefined'){
+      const tmp = newL[swapFrom]; newL[swapFrom] = newL[pos1Idx]; newL[pos1Idx] = tmp;
+    } else {
+      newL[pos1Idx] = null;
+    }
+  }
+  return newL;
+}
+
+// rotate lineup (clockwise): pos1<=pos2, pos2<=pos3, pos3<=pos4, pos4<=pos5, pos5<=pos6, pos6<=pos1 mapping visually
+function rotateLineup(oldL){
+  // visual order indices: [0:pos4,1:pos3,2:pos2,3:pos5,4:pos6,5:pos1]
+  // rotation sequence of positions by their indices in this array: pos1(index5) <- pos2(index2) <- pos3(index1) <- pos4(index0) <- pos5(index3) <- pos6(index4) <- pos1
+  const seq = [5,2,1,0,3,4]; // newPos sequence, each receives from next in seq
+  const newL = Array(6).fill(null);
+  for(let i=0;i<seq.length;i++){
+    const newPos = seq[i];
+    const oldPos = seq[(i+1)%seq.length];
+    newL[newPos] = oldL[oldPos];
+  }
+  return newL;
+}
+
+// scoring and rotation logic
+function addPoint(team){
+  // update score in sets
+  const s = state.sets.find(x=>x.set===state.currentSet);
+  s[team] = (s[team] || 0) + 1;
+  // if lastPointWinner exists and different from current team => side-out occurred -> if we are 'us' we rotate our lineup
+  if(state.lastPointWinner && state.lastPointWinner !== team){
+    if(team === 'us'){
+      const old = state.lineup.slice();
+      const rotated = rotateLineup(old);
+      const withLibero = applyLiberoRules(rotated);
+      state.lineup = withLibero;
+      // store in set lineup
+      const setObj = state.sets.find(x=>x.set===state.currentSet);
+      setObj.lineup = withLibero.slice();
+      renderCourt(true);
+    }
+  }
+  state.lastPointWinner = team;
+  save(); renderCourt();
+}
+
+// buttons
+document.getElementById('autoLineBtn').addEventListener('click', ()=>{
+  const normals = state.players.filter(p=>p.role!=='libero');
+  if(normals.length < 6) return alert('Minimaal 6 niet-libero spelers nodig');
+  state.lineup = normals.slice(0,6).map(p=>p.id);
+  // apply libero rules display-wise
+  state.lineup = applyLiberoRules(state.lineup);
+  // save to current set lineup
+  const setObj = state.sets.find(x=>x.set===state.currentSet);
+  setObj.lineup = state.lineup.slice();
+  save(); render();
+});
+
+document.getElementById('saveLineBtn').addEventListener('click', ()=>{
+  const setObj = state.sets.find(x=>x.set===state.currentSet);
+  setObj.lineup = state.lineup.slice();
+  save(); alert('Opstelling opgeslagen voor set '+state.currentSet);
+});
+
+document.getElementById('rotateBtn').addEventListener('click', ()=>{
+  state.lineup = applyLiberoRules(rotateLineup(state.lineup));
+  save(); renderCourt(true);
+});
+
+document.getElementById('clearBtn').addEventListener('click', ()=>{
+  if(!confirm('Reset alles?')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  state = {players:[], sets:[{set:1,us:0,them:0,lineup:[null,null,null,null,null,null],timeouts:[]}], currentSet:1, lineup:[null,null,null,null,null,null], lastPointWinner:null, substituted:{} };
+  render();
+  alert('Opnieuw begonnen');
+});
+
+document.getElementById('nextSetBtn').addEventListener('click', ()=>{
+  // show modal: copy lineup? or choose swaps
+  showNextSetModal();
+});
+
+// simple modal UI functions
+function showNextSetModal(){
+  const modal = document.createElement('div'); modal.className='modal-back';
+  modal.innerHTML = `<div class="modal card">
+    <h3>Nieuwe set - gebruik vorige opstelling?</h3>
+    <p>Wil je de huidige opstelling kopiëren naar set ${state.currentSet+1}?</p>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button id="copyYes" class="button-primary input">Ja, kopieer</button>
+      <button id="copyNo" class="input">Nee, kies wissels</button>
+      <button id="copyCancel" class="input">Annuleer</button>
+    </div>
+  </div>`;
+  modalRoot.appendChild(modal);
+  document.getElementById('copyYes').addEventListener('click', ()=>{
+    modal.remove();
+    const newSet = state.currentSet+1;
+    const copied = state.lineup.slice();
+    const final = applyLiberoRules(copied);
+    state.sets.push({set:newSet, us:0, them:0, lineup: final, timeouts:[]});
+    state.currentSet = newSet;
+    state.lineup = final;
+    state.lastPointWinner = null;
+    save(); render();
+  });
+  document.getElementById('copyNo').addEventListener('click', ()=>{
+    modal.remove();
+    // only allow swaps if >6 players and at least 1 libero exists
+    const libero = firstLibero();
+    if(state.players.length>6 && libero){
+      showSwapPicker();
+    } else {
+      // fallback to empty lineup
+      const newSet = state.currentSet+1;
+      state.sets.push({set:newSet, us:0, them:0, lineup:[null,null,null,null,null,null], timeouts:[]});
+      state.currentSet = newSet;
+      state.lineup = [null,null,null,null,null,null];
+      state.lastPointWinner = null;
+      save(); render();
+    }
+  });
+  document.getElementById('copyCancel').addEventListener('click', ()=>{ modal.remove(); });
+}
+
+// swap picker modal
+function showSwapPicker(){
+  const modal = document.createElement('div'); modal.className='modal-back';
+  const libero = firstLibero();
+  let html = `<div class="modal card"><h3>Kies spelers voor set ${state.currentSet+1}</h3><div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">`;
+  for(let i=0;i<6;i++){
+    const opts = state.players.map(p=>`<option value="${p.id}">${p.name} (${p.role})</option>`).join('');
+    html += `<div style="display:flex;gap:8px;align-items:center"><div style="width:80px">${posLabels[i]}</div><select id="swap_${i}" class="input" style="flex:1"><option value="">-- kies --</option>${opts}</select></div>`;
+  }
+  html += `</div><div style="display:flex;gap:8px;margin-top:12px"><button id="swapConfirm" class="button-primary input">Bevestig</button><button id="swapCancel" class="input">Annuleer</button></div></div>`;
+  modal.innerHTML = html;
+  modalRoot.appendChild(modal);
+  document.getElementById('swapConfirm').addEventListener('click', ()=>{
+    const newLine = [null,null,null,null,null,null];
+    for(let i=0;i<6;i++){
+      const v = document.getElementById('swap_'+i).value;
+      newLine[i] = v?parseInt(v):null;
+    }
+    // apply libero rules and push new set
+    const final = applyLiberoRules(newLine);
+    const newSet = state.currentSet+1;
+    state.sets.push({set:newSet, us:0, them:0, lineup: final, timeouts:[]});
+    state.currentSet = newSet;
+    state.lineup = final;
+    state.lastPointWinner = null;
+    save(); render();
+    modal.remove();
+  });
+  document.getElementById('swapCancel').addEventListener('click', ()=>{ modal.remove(); });
+}
+
+// render main UI
+function render(){
+  renderPlayers();
+  renderCourt();
+}
+
+// install prompt handling
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e)=>{
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('installBtn').style.display='inline-block';
+});
+document.getElementById('installBtn').addEventListener('click', async ()=>{
+  if(deferredPrompt){
+    deferredPrompt.prompt();
+    const choice = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+  } else {
+    alert('Installatieprompt niet beschikbaar — open via Chrome menu: Voeg toe aan startscherm');
+  }
+});
+
+// quick point adding via long-press? For now add keyboard shortcuts for testing
+document.addEventListener('keydown', (e)=>{
+  if(e.key==='1') addPoint('us');
+  if(e.key==='2') addPoint('them');
+});
+
+// register service worker
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('service-worker.js').then(()=>console.log('sw registered')).catch(()=>{});
+}
+
+// initial load
+load();
+</script>
+</body>
+</html>
