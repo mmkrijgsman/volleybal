@@ -9,11 +9,11 @@
 <style>
 :root{--bg:#fff7ef;--card:#fff;--accent:#ff9900;--muted:#6b7280}
 *{box-sizing:border-box}
-body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;background:linear-gradient(180deg,#fffaf0,#fff7ef);color:#111;padding:16px}
-.app{max-width:980px;margin:0 auto}
+body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;background:linear-gradient(180deg,#fffaf0,#fff7ef);color:#111;padding:12px}
+.app{max-width:1100px;margin:0 auto}
 .header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
 .h-title{font-size:20px;font-weight:700;color:var(--accent);display:flex;align-items:center;gap:8px}
-.card{background:var(--card);border-radius:14px;padding:12px;box-shadow:0 6px 18px rgba(15,23,42,0.06);margin-bottom:12px}
+.card{background:var(--card);border-radius:12px;padding:12px;box-shadow:0 6px 18px rgba(15,23,42,0.06);margin-bottom:12px}
 .controls{display:flex;gap:8px;flex-wrap:wrap}
 .input,select,button{padding:10px;border-radius:10px;border:1px solid #e6e6e6;font-size:14px}
 .button-primary{background:var(--accent);color:white;border:none}
@@ -22,25 +22,28 @@ body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;backg
 .small{font-size:13px;color:var(--muted)}
 
 /* court */
-.court{position:relative;height:420px;border-radius:14px;overflow:hidden;background:linear-gradient(180deg,#ffebcc,#ffe6b3);display:flex;align-items:center;justify-content:center}
+.court{position:relative;height:460px;border-radius:12px;overflow:hidden;background:linear-gradient(180deg,#ffebcc,#ffe6b3);display:flex;align-items:center;justify-content:center}
 .net{position:absolute;top:20%;left:0;right:0;height:4px;background:#333;opacity:0.9;z-index:5}
 .positions{position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:12px;padding:36px;pointer-events:none}
-.pos{background:#fff;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-direction:column;pointer-events:auto;transition:transform 400ms cubic-bezier(.2,.9,.3,1);box-shadow:0 6px 12px rgba(0,0,0,0.06)}
+.pos{background:#fff;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-direction:column;pointer-events:auto;transition:transform 450ms cubic-bezier(.2,.9,.3,1), box-shadow 250ms;box-shadow:0 6px 12px rgba(0,0,0,0.06)}
 .pos .num{font-weight:700}
 .pos.libero{background:#fff7e6;border:2px dashed #ffd699}
 
 /* animation for rotation */
 .rotate-anim { transform-origin: center center; animation: rotateStep 450ms ease-in-out; }
-@keyframes rotateStep { from { transform: translateY(-6px) } to { transform: translateY(0) } }
+@keyframes rotateStep { from { transform: translateY(-8px) scale(0.98); opacity:0.0 } to { transform: translateY(0) scale(1); opacity:1 } }
 
-.footer{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.heat-dot{position:absolute;width:22px;height:22px;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;opacity:0.95;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.15));}
+
+/* legend */
+.legend{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 
 /* modal */
-.modal-back{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:50}
-.modal{width:95%;max-width:520px;background:white;border-radius:12px;padding:16px}
+.modal-back{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:60}
+.modal{width:95%;max-width:720px;background:white;border-radius:12px;padding:16px}
 
 /* responsive */
-@media (max-width:600px){ .grid{grid-template-columns:1fr} .positions{padding:18px} }
+@media (max-width:800px){ .grid{grid-template-columns:1fr} .positions{padding:18px} .court{height:380px} }
 </style>
 </head>
 <body>
@@ -54,7 +57,7 @@ body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;backg
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <input id="name" class="input" placeholder="Naam speler" />
       <input id="number" class="input" placeholder="Nummer" style="width:90px" />
-      <select id="role" class="input" style="width:160px">
+      <select id="role" class="input" style="width:180px">
         <option value="passer-loper">Passer-loper</option>
         <option value="midden">Midden</option>
         <option value="spelverdeler">Spelverdeler</option>
@@ -69,7 +72,7 @@ body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;backg
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
       <div class="small">Spelers</div>
-      <div class="small">Klik om te verwijderen</div>
+      <div class="small">Tik om te verwijderen</div>
     </div>
     <div id="playersList" style="display:flex;flex-direction:column;gap:6px"></div>
   </div>
@@ -85,74 +88,55 @@ body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;backg
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
       <div class="small">Huidige set: <strong id="currentSet">1</strong></div>
       <div class="small">Score: <strong id="score">0 - 0</strong></div>
+      <div class="small">Timeouts: <strong id="timeouts">0/2</strong></div>
     </div>
 
     <div class="court card" id="court">
       <div class="net"></div>
       <div class="positions" id="positions"></div>
+      <!-- overlay for heat dots -->
+      <div id="heatLayer" style="position:absolute;inset:0;pointer-events:none"></div>
     </div>
 
-    <div style="margin-top:8px" class="small">Regels: Libero vervangt midden alleen op pos5/6 en mag niet serveren.</div>
+    <div style="margin-top:8px" class="small">Regels: Libero vervangt midden alleen op pos5/6 en mag niet serveren. Tik onder het net om serviceplaats te registreren.</div>
   </div>
 
-  <div class="card footer">
+  <div class="card footer" style="display:flex;justify-content:space-between;align-items:center">
     <div>⚙️ Instellingen</div>
     <div><button id="installBtn" class="input">Installeren (PWA)</button></div>
   </div>
 </div>
 
-<!-- Modal placeholders -->
+<!-- Modal root -->
 <div id="modalRoot"></div>
 
 <script>
-/* Simple PWA-friendly volleyball tracker (vanilla JS)
-   - players stored in localStorage
-   - lineup for current set stored
-   - next-set modal: copy lineup or choose swaps (if >6 players & libero)
-   - rotation logic: if team gains point after opponent had it => rotate
-   - libero substitution on pos5/6; libero not allowed on pos1
-*/
-
-const STORAGE_KEY = 'volleyapp_v1';
+const STORAGE_KEY = 'volleyapp_full_v1';
 let state = {
-  players: [], // {id, name, number, role}
-  sets: [{set:1, us:0, them:0, lineup: [null,null,null,null,null,null], timeouts: []}],
+  players: [],
+  sets: [{set:1, us:0, them:0, lineup:[null,null,null,null,null,null], timeouts:[], serviceHits: []}],
   currentSet: 1,
   lineup: [null,null,null,null,null,null],
   lastPointWinner: null,
-  substituted: {} // id -> true if substituted by libero
+  substituted: {}
 };
 
 // DOM refs
 const playersList = document.getElementById('playersList');
 const positionsEl = document.getElementById('positions');
+const heatLayer = document.getElementById('heatLayer');
 const currentSetEl = document.getElementById('currentSet');
 const scoreEl = document.getElementById('score');
+const timeoutsEl = document.getElementById('timeouts');
 const modalRoot = document.getElementById('modalRoot');
 
-// positions mapping (index order corresponds to visual positions grid)
 const posLabels = ['Pos 4','Pos 3','Pos 2','Pos 5','Pos 6','Pos 1'];
 
-// load from localStorage
-function load() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) state = JSON.parse(raw);
-  } catch(e){ console.warn('load error',e) }
-  // ensure arrays exist
-  state.players = state.players || [];
-  state.sets = state.sets || [{set:1, us:0, them:0, lineup:[null,null,null,null,null,null], timeouts:[]}];
-  state.currentSet = state.currentSet || 1;
-  state.lineup = state.lineup || [null,null,null,null,null,null];
-  render();
-}
+// storage
+function load(){ try{ const raw = localStorage.getItem(STORAGE_KEY); if(raw) state = JSON.parse(raw); }catch(e){console.warn(e);} state.players = state.players||[]; state.sets = state.sets||[{set:1,us:0,them:0,lineup:[null,null,null,null,null,null],timeouts:[],serviceHits:[]}]; state.lineup = state.lineup||[null,null,null,null,null,null]; render(); }
+function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 
-function save() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-}
-
-// helpers
-function uid(){ return Date.now() + Math.floor(Math.random()*999); }
+function uid(){ return Date.now()+Math.floor(Math.random()*999); }
 function getPlayer(id){ return state.players.find(p=>p.id===id) || null; }
 function firstLibero(){ return state.players.find(p=>p.role==='libero') || null; }
 
@@ -163,24 +147,22 @@ document.getElementById('addBtn').addEventListener('click', ()=>{
   const role = document.getElementById('role').value;
   if(!name) return alert('Voer een naam in');
   if(role==='libero' && state.players.some(p=>p.role==='libero')) return alert('Er is al een libero');
-  const p = {id: uid(), name, number: number || '', role};
+  const p = {id: uid(), name, number: number||'', role};
   state.players.push(p);
   document.getElementById('name').value=''; document.getElementById('number').value='';
   save(); render();
 });
 
-// render players list
 function renderPlayers(){
   playersList.innerHTML='';
-  state.players.forEach(p => {
+  state.players.forEach(p=>{
     const el = document.createElement('div'); el.className='player-row';
     el.innerHTML = `<div><strong>#${p.number}</strong> ${p.name} <div class="small">(${p.role})</div></div>`;
     el.addEventListener('click', ()=>{
       if(confirm('Verwijder speler '+p.name+'?')){
         state.players = state.players.filter(x=>x.id!==p.id);
-        // remove from lineup
-        state.lineup = state.lineup.map(x => x===p.id?null:x);
-        state.sets = state.sets.map(s => ({...s, lineup: (s.lineup||[null, null, null, null, null, null]).map(x=>x===p.id?null:x)}));
+        state.lineup = state.lineup.map(x=>x===p.id?null:x);
+        state.sets = state.sets.map(s=>({...s, lineup:(s.lineup||[null,null,null,null,null,null]).map(x=>x===p.id?null:x)}));
         save(); render();
       }
     });
@@ -188,14 +170,14 @@ function renderPlayers(){
   });
 }
 
-// render court & lineup
 function renderCourt(animate=false){
   positionsEl.innerHTML='';
+  heatLayer.innerHTML='';
   const libero = firstLibero();
   const pos5Idx = 3, pos6Idx = 4, pos1Idx = 5;
   for(let i=0;i<6;i++){
     const div = document.createElement('div');
-    div.className = 'pos card';
+    div.className='pos';
     if(animate) div.classList.add('rotate-anim');
     const pid = state.lineup[i];
     let label = posLabels[i];
@@ -207,51 +189,62 @@ function renderCourt(animate=false){
     } else {
       content = 'Leeg';
     }
-    // if libero should replace middens on pos5/6
+    // Libero visual substitution: if middens would be at pos5/6, show libero
     if(libero && (i===pos5Idx || i===pos6Idx)){
-      // if current assigned is a midden, substitute
       if(pid){
         const p = getPlayer(pid);
         if(p && p.role==='midden'){
           content = `#${libero.number || ''} ${libero.name} (L)`;
           div.classList.add('libero');
         }
-      } else if(libero){
-        // if empty slot, show libero if desired (we show libero if present)
-        // only if that pos would be occupied by a substituted midden — but for simplicity, show libero visually
-        // nothing to change in state.lineup here
       }
     }
     div.innerHTML = `<div class="num">${label}</div><div style="font-size:14px;margin-top:6px">${content}</div>`;
     positionsEl.appendChild(div);
   }
-  // update score & set
+  // draw heat dots for current set
+  const curSetObj = state.sets.find(s=>s.set===state.currentSet) || {serviceHits:[]};
+  curSetObj.serviceHits = curSetObj.serviceHits || [];
+  curSetObj.serviceHits.forEach(h=>{
+    const dot = document.createElement('div');
+    dot.className='heat-dot';
+    dot.style.left = h.x + '%';
+    dot.style.top = h.y + '%';
+    // color intensity mapped to count (we store count as h.count)
+    const count = h.count || 1;
+    const alpha = Math.min(0.85, 0.2 + count * 0.15);
+    const size = Math.min(48, 12 + count*6);
+    dot.style.width = size+'px'; dot.style.height = size+'px';
+    dot.style.background = `rgba(220,38,38,${alpha})`;
+    dot.style.zIndex = 40;
+    heatLayer.appendChild(dot);
+  });
+
   currentSetEl.textContent = state.currentSet;
-  const s = state.sets.find(x=>x.set===state.currentSet) || {us:0,them:0};
-  scoreEl.textContent = `${s.us} - ${s.them}`;
+  const s = state.sets.find(x=>x.set===state.currentSet) || {us:0,them:0,timeouts:[]};
+  scoreEl.textContent = `${s.us || 0} - ${s.them || 0}`;
+  timeoutsEl.textContent = `${s.timeouts ? s.timeouts.length : 0}/2`;
 }
 
-// apply libero substitution rules to a tentative lineup array and return new lineup
+// apply libero substitution rules to tentative lineup array (return new lineup)
 function applyLiberoRules(tentative){
   const newL = tentative.slice();
   const libero = firstLibero();
   if(!libero) return newL;
   const pos5Idx = 3, pos6Idx = 4, pos1Idx = 5;
-  // replace middens on pos5/6 with libero
-  [pos5Idx,pos6Idx].forEach(idx => {
+  [pos5Idx,pos6Idx].forEach(idx=>{
     const pid = newL[idx];
     if(pid){
       const p = getPlayer(pid);
       if(p && p.role==='midden'){
-        // substitute
         newL[idx] = libero.id;
         state.substituted[p.id] = true;
       }
     }
   });
-  // ensure libero not on pos1: if so, try swap with pos5/6 else null pos1
+  // ensure libero not on pos1
   if(newL[pos1Idx] && getPlayer(newL[pos1Idx]) && getPlayer(newL[pos1Idx]).role==='libero'){
-    const swapFrom = [pos5Idx,pos6Idx].find(i => newL[i]===newL[pos1Idx]);
+    const swapFrom = [pos5Idx,pos6Idx].find(i=>newL[i]===newL[pos1Idx]);
     if(typeof swapFrom!=='undefined'){
       const tmp = newL[swapFrom]; newL[swapFrom] = newL[pos1Idx]; newL[pos1Idx] = tmp;
     } else {
@@ -261,11 +254,9 @@ function applyLiberoRules(tentative){
   return newL;
 }
 
-// rotate lineup (clockwise): pos1<=pos2, pos2<=pos3, pos3<=pos4, pos4<=pos5, pos5<=pos6, pos6<=pos1 mapping visually
+// rotate lineup (clockwise) using visual index mapping
 function rotateLineup(oldL){
-  // visual order indices: [0:pos4,1:pos3,2:pos2,3:pos5,4:pos6,5:pos1]
-  // rotation sequence of positions by their indices in this array: pos1(index5) <- pos2(index2) <- pos3(index1) <- pos4(index0) <- pos5(index3) <- pos6(index4) <- pos1
-  const seq = [5,2,1,0,3,4]; // newPos sequence, each receives from next in seq
+  const seq = [5,2,1,0,3,4]; // mapping newPos <- oldPos sequence
   const newL = Array(6).fill(null);
   for(let i=0;i<seq.length;i++){
     const newPos = seq[i];
@@ -275,20 +266,18 @@ function rotateLineup(oldL){
   return newL;
 }
 
-// scoring and rotation logic
+// scoring logic
 function addPoint(team){
-  // update score in sets
-  const s = state.sets.find(x=>x.set===state.currentSet);
-  s[team] = (s[team] || 0) + 1;
-  // if lastPointWinner exists and different from current team => side-out occurred -> if we are 'us' we rotate our lineup
+  const setObj = state.sets.find(s=>s.set===state.currentSet);
+  setObj[team] = (setObj[team]||0) + 1;
+  // rotation: if lastPointWinner exists and different -> side-out occurred
   if(state.lastPointWinner && state.lastPointWinner !== team){
     if(team === 'us'){
       const old = state.lineup.slice();
       const rotated = rotateLineup(old);
       const withLibero = applyLiberoRules(rotated);
       state.lineup = withLibero;
-      // store in set lineup
-      const setObj = state.sets.find(x=>x.set===state.currentSet);
+      // save to set lineup
       setObj.lineup = withLibero.slice();
       renderCourt(true);
     }
@@ -297,14 +286,12 @@ function addPoint(team){
   save(); renderCourt();
 }
 
-// buttons
+// UI buttons
 document.getElementById('autoLineBtn').addEventListener('click', ()=>{
   const normals = state.players.filter(p=>p.role!=='libero');
   if(normals.length < 6) return alert('Minimaal 6 niet-libero spelers nodig');
   state.lineup = normals.slice(0,6).map(p=>p.id);
-  // apply libero rules display-wise
   state.lineup = applyLiberoRules(state.lineup);
-  // save to current set lineup
   const setObj = state.sets.find(x=>x.set===state.currentSet);
   setObj.lineup = state.lineup.slice();
   save(); render();
@@ -324,35 +311,41 @@ document.getElementById('rotateBtn').addEventListener('click', ()=>{
 document.getElementById('clearBtn').addEventListener('click', ()=>{
   if(!confirm('Reset alles?')) return;
   localStorage.removeItem(STORAGE_KEY);
-  state = {players:[], sets:[{set:1,us:0,them:0,lineup:[null,null,null,null,null,null],timeouts:[]}], currentSet:1, lineup:[null,null,null,null,null,null], lastPointWinner:null, substituted:{} };
+  state = {players:[], sets:[{set:1,us:0,them:0,lineup:[null,null,null,null,null,null],timeouts:[],serviceHits:[]}], currentSet:1, lineup:[null,null,null,null,null,null], lastPointWinner:null, substituted:{} };
   render();
   alert('Opnieuw begonnen');
 });
 
 document.getElementById('nextSetBtn').addEventListener('click', ()=>{
-  // show modal: copy lineup? or choose swaps
   showNextSetModal();
 });
 
-// simple modal UI functions
+// register clicks on court to register service hit (only under net area - visual Y > 20%)
+document.getElementById('court').addEventListener('click', (e)=>{
+  const rect = e.currentTarget.getBoundingClientRect();
+  const x = ((e.clientX - rect.left) / rect.width) * 100;
+  const y = ((e.clientY - rect.top) / rect.height) * 100;
+  if(y <= 20) return; // ignore opponent area
+  // add service hit to current set
+  const setObj = state.sets.find(s=>s.set===state.currentSet);
+  setObj.serviceHits = setObj.serviceHits || [];
+  // find existing near dot and increment count if close
+  const found = setObj.serviceHits.find(h=>Math.hypot(h.x-x,h.y-y) < 6);
+  if(found){ found.count = (found.count||1)+1; } else { setObj.serviceHits.push({x:Math.round(x*10)/10,y:Math.round(y*10)/10,count:1}); }
+  save(); renderCourt();
+});
+
+// Modal logic for next set
 function showNextSetModal(){
   const modal = document.createElement('div'); modal.className='modal-back';
-  modal.innerHTML = `<div class="modal card">
-    <h3>Nieuwe set - gebruik vorige opstelling?</h3>
-    <p>Wil je de huidige opstelling kopiëren naar set ${state.currentSet+1}?</p>
-    <div style="display:flex;gap:8px;margin-top:12px">
-      <button id="copyYes" class="button-primary input">Ja, kopieer</button>
-      <button id="copyNo" class="input">Nee, kies wissels</button>
-      <button id="copyCancel" class="input">Annuleer</button>
-    </div>
-  </div>`;
+  modal.innerHTML = `<div class="modal card"><h3>Nieuwe set - gebruik vorige opstelling?</h3><p>Wil je de huidige opstelling kopiëren naar set ${state.currentSet+1}?</p><div style="display:flex;gap:8px;margin-top:12px"><button id="copyYes" class="button-primary input">Ja, kopieer</button><button id="copyNo" class="input">Nee, kies wissels</button><button id="copyCancel" class="input">Annuleer</button></div></div>`;
   modalRoot.appendChild(modal);
   document.getElementById('copyYes').addEventListener('click', ()=>{
     modal.remove();
     const newSet = state.currentSet+1;
     const copied = state.lineup.slice();
     const final = applyLiberoRules(copied);
-    state.sets.push({set:newSet, us:0, them:0, lineup: final, timeouts:[]});
+    state.sets.push({set:newSet, us:0, them:0, lineup: final, timeouts:[], serviceHits: []});
     state.currentSet = newSet;
     state.lineup = final;
     state.lastPointWinner = null;
@@ -360,14 +353,12 @@ function showNextSetModal(){
   });
   document.getElementById('copyNo').addEventListener('click', ()=>{
     modal.remove();
-    // only allow swaps if >6 players and at least 1 libero exists
     const libero = firstLibero();
     if(state.players.length>6 && libero){
       showSwapPicker();
     } else {
-      // fallback to empty lineup
       const newSet = state.currentSet+1;
-      state.sets.push({set:newSet, us:0, them:0, lineup:[null,null,null,null,null,null], timeouts:[]});
+      state.sets.push({set:newSet, us:0, them:0, lineup:[null,null,null,null,null,null], timeouts:[], serviceHits: []});
       state.currentSet = newSet;
       state.lineup = [null,null,null,null,null,null];
       state.lastPointWinner = null;
@@ -377,7 +368,6 @@ function showNextSetModal(){
   document.getElementById('copyCancel').addEventListener('click', ()=>{ modal.remove(); });
 }
 
-// swap picker modal
 function showSwapPicker(){
   const modal = document.createElement('div'); modal.className='modal-back';
   const libero = firstLibero();
@@ -395,10 +385,9 @@ function showSwapPicker(){
       const v = document.getElementById('swap_'+i).value;
       newLine[i] = v?parseInt(v):null;
     }
-    // apply libero rules and push new set
     const final = applyLiberoRules(newLine);
     const newSet = state.currentSet+1;
-    state.sets.push({set:newSet, us:0, them:0, lineup: final, timeouts:[]});
+    state.sets.push({set:newSet, us:0, them:0, lineup: final, timeouts:[], serviceHits: []});
     state.currentSet = newSet;
     state.lineup = final;
     state.lastPointWinner = null;
@@ -408,41 +397,15 @@ function showSwapPicker(){
   document.getElementById('swapCancel').addEventListener('click', ()=>{ modal.remove(); });
 }
 
-// render main UI
-function render(){
-  renderPlayers();
-  renderCourt();
-}
-
-// install prompt handling
-let deferredPrompt;
-window.addEventListener('beforeinstallprompt', (e)=>{
-  e.preventDefault();
-  deferredPrompt = e;
-  document.getElementById('installBtn').style.display='inline-block';
-});
-document.getElementById('installBtn').addEventListener('click', async ()=>{
-  if(deferredPrompt){
-    deferredPrompt.prompt();
-    const choice = await deferredPrompt.userChoice;
-    deferredPrompt = null;
-  } else {
-    alert('Installatieprompt niet beschikbaar — open via Chrome menu: Voeg toe aan startscherm');
-  }
-});
-
-// quick point adding via long-press? For now add keyboard shortcuts for testing
-document.addEventListener('keydown', (e)=>{
-  if(e.key==='1') addPoint('us');
-  if(e.key==='2') addPoint('them');
-});
+// simple point additions using keyboard for quick testing (1 = us, 2 = them)
+document.addEventListener('keydown', (e)=>{ if(e.key==='1') addPoint('us'); if(e.key==='2') addPoint('them'); });
 
 // register service worker
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('service-worker.js').then(()=>console.log('sw registered')).catch(()=>{});
 }
 
-// initial load
+function render(){ renderPlayers(); renderCourt(); save(); }
 load();
 </script>
 </body>
