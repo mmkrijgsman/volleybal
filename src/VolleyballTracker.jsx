@@ -1,3 +1,4 @@
+import React from 'react';
 import PlayersPanel from './components/Players/PlayersPanel';
 
 export default function VolleyballTracker() {
